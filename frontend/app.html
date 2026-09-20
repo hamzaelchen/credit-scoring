@@ -1,0 +1,279 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Évaluer un client — Credit Scoring</title>
+  <meta name="description" content="Renseignez le dossier d'un client : le modèle renvoie la probabilité de défaut, la décision et les facteurs qui ont pesé.">
+  <meta name="theme-color" content="#0a0a0c">
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Inter:wght@400;500&family=Space+Grotesk:wght@500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+  <script src="js/config.js"></script>
+  <script src="js/charts.js" defer></script>
+  <script src="js/app.js" defer></script>
+</head>
+<body data-page="tool">
+  <a class="skip-link" href="#main">Aller au contenu</a>
+  <div class="bg-mesh" aria-hidden="true"><span></span><span></span><span></span></div>
+
+  <header class="nav">
+    <div class="container nav__inner">
+      <a class="brand" href="index.html" aria-label="Credit Scoring, accueil">
+        <svg width="26" height="26" viewBox="0 0 26 26" aria-hidden="true">
+          <circle cx="13" cy="13" r="10" fill="none" stroke="#2a2a2e" stroke-width="3"/>
+          <circle cx="13" cy="13" r="10" fill="none" stroke="#4d7fff" stroke-width="3" stroke-linecap="round" stroke-dasharray="38 63" transform="rotate(-90 13 13)"/>
+        </svg>
+        <span>Credit Scoring</span>
+      </a>
+      <nav aria-label="Navigation principale">
+        <ul class="nav__links">
+          <li><a href="app.html" aria-current="page">Outil</a></li>
+          <li><a href="model.html">Modèle</a></li>
+        </ul>
+      </nav>
+    </div>
+  </header>
+
+  <main id="main">
+    <div class="container">
+      <header class="page-head">
+        <p class="eyebrow">Outil d'évaluation</p>
+        <h1>Évaluer un client</h1>
+        <p class="lead">Renseignez le dossier : le modèle renvoie la probabilité de défaut, la décision au seuil retenu et les facteurs qui ont pesé.</p>
+      </header>
+
+      <!-- Bandeau d'état : API, modèle, seuil -->
+      <div class="statusbar" id="statusbar" role="status">
+        <span class="statusbar__item"><span class="dot" id="status-dot"></span><strong id="status-text">Connexion…</strong></span>
+        <span class="statusbar__item">Modèle <strong id="status-model">—</strong></span>
+        <span class="statusbar__item">Seuil <strong id="status-threshold">—</strong></span>
+      </div>
+
+      <form id="client-form" novalidate>
+        <div class="toolbar">
+          <div class="toolbar__group">
+            <span class="toolbar__label" id="presets-label">Exemples</span>
+            <div class="chips" role="group" aria-labelledby="presets-label">
+              <button type="button" class="chip" data-preset="standard">Profil standard</button>
+              <button type="button" class="chip" data-preset="limit">Profil limite</button>
+              <button type="button" class="chip" data-preset="risk">Profil à risque</button>
+            </div>
+          </div>
+          <div class="currency">
+            <label class="toolbar__label" for="currency">Devise d'affichage</label>
+            <select id="currency" class="select">
+              <option value="MAD">MAD — dirham</option>
+              <option value="EUR">EUR — euro</option>
+              <option value="USD">USD — dollar</option>
+            </select>
+            <p class="currency__note">Conversion à taux fixe indicatif, à des fins d'affichage uniquement. Le modèle reçoit toujours des USD.</p>
+          </div>
+        </div>
+
+        <div class="form-grid">
+          <!-- Profil -->
+          <div class="card" role="group" aria-labelledby="g-profile">
+            <h2 class="card__title" id="g-profile">Profil</h2>
+
+            <div class="field">
+              <div class="field__head"><label for="f-age">Âge</label></div>
+              <div class="input input--suffix">
+                <input id="f-age" type="number" inputmode="numeric" min="18" max="100" step="1" required aria-describedby="err-age">
+                <span class="input__suffix" aria-hidden="true">ans</span>
+              </div>
+              <p class="field__error" id="err-age" role="alert" hidden></p>
+            </div>
+
+            <div class="field">
+              <div class="field__head">
+                <label for="f-income">Revenu mensuel</label>
+                <span class="tip">
+                  <button type="button" class="tip__btn" aria-describedby="tip-income" aria-label="Aide : revenu mensuel">?</button>
+                  <span class="tip__body" role="tooltip" id="tip-income">Revenu mensuel avant impôts. Le modèle a été entraîné sur des revenus en USD : la valeur saisie est convertie en USD avant l'envoi.</span>
+                </span>
+              </div>
+              <div class="input input--suffix">
+                <input id="f-income" type="number" inputmode="decimal" min="0" step="any" required aria-describedby="income-usd err-income">
+                <span class="input__suffix" id="income-suffix" aria-hidden="true">USD</span>
+              </div>
+              <p class="field__hint" id="income-usd"></p>
+              <label class="check"><input type="checkbox" id="f-income_unknown"> Revenu inconnu</label>
+              <p class="field__error" id="err-income" role="alert" hidden></p>
+            </div>
+
+            <div class="field">
+              <div class="field__head"><label for="f-dependents">Personnes à charge</label></div>
+              <div class="input">
+                <input id="f-dependents" type="number" inputmode="numeric" min="0" max="20" step="1" required aria-describedby="err-dependents">
+              </div>
+              <label class="check"><input type="checkbox" id="f-dependents_unknown"> Nombre inconnu</label>
+              <p class="field__error" id="err-dependents" role="alert" hidden></p>
+            </div>
+          </div>
+
+          <!-- Endettement et crédits -->
+          <div class="card" role="group" aria-labelledby="g-debt">
+            <h2 class="card__title" id="g-debt">Endettement et crédits</h2>
+
+            <div class="field">
+              <div class="field__head">
+                <label for="f-revolving">Utilisation du crédit renouvelable</label>
+                <span class="tip">
+                  <button type="button" class="tip__btn" aria-describedby="tip-revolving" aria-label="Aide : utilisation du crédit renouvelable">?</button>
+                  <span class="tip__body" role="tooltip" id="tip-revolving">Part utilisée des lignes de crédit renouvelables (cartes, découverts autorisés). 30 % signifie 30 % du plafond utilisé ; au-delà de 100 %, le client dépasse son plafond.</span>
+                </span>
+              </div>
+              <div class="input input--suffix">
+                <input id="f-revolving" type="number" inputmode="decimal" min="0" max="1000" step="any" required aria-describedby="err-revolving">
+                <span class="input__suffix" aria-hidden="true">%</span>
+              </div>
+              <p class="field__error" id="err-revolving" role="alert" hidden></p>
+            </div>
+
+            <div class="field">
+              <div class="field__head">
+                <label for="f-debt">Taux d'endettement</label>
+                <span class="tip">
+                  <button type="button" class="tip__btn" aria-describedby="tip-debt" aria-label="Aide : taux d'endettement">?</button>
+                  <span class="tip__body" role="tooltip" id="tip-debt">Mensualités de dettes divisées par le revenu mensuel. 35 % signifie qu'un tiers du revenu part dans le remboursement des dettes.</span>
+                </span>
+              </div>
+              <div class="input input--suffix">
+                <input id="f-debt" type="number" inputmode="decimal" min="0" max="1000" step="any" required aria-describedby="err-debt">
+                <span class="input__suffix" aria-hidden="true">%</span>
+              </div>
+              <p class="field__error" id="err-debt" role="alert" hidden></p>
+            </div>
+
+            <div class="field">
+              <div class="field__head">
+                <label for="f-open_lines">Crédits et lignes ouverts</label>
+                <span class="tip">
+                  <button type="button" class="tip__btn" aria-describedby="tip-open" aria-label="Aide : crédits et lignes ouverts">?</button>
+                  <span class="tip__body" role="tooltip" id="tip-open">Nombre total de prêts et de lignes de crédit actuellement ouverts.</span>
+                </span>
+              </div>
+              <div class="input"><input id="f-open_lines" type="number" inputmode="numeric" min="0" max="60" step="1" required aria-describedby="err-open_lines"></div>
+              <p class="field__error" id="err-open_lines" role="alert" hidden></p>
+            </div>
+
+            <div class="field">
+              <div class="field__head">
+                <label for="f-real_estate">Prêts immobiliers</label>
+                <span class="tip">
+                  <button type="button" class="tip__btn" aria-describedby="tip-estate" aria-label="Aide : prêts immobiliers">?</button>
+                  <span class="tip__body" role="tooltip" id="tip-estate">Nombre de prêts immobiliers ou de lignes garanties par un bien.</span>
+                </span>
+              </div>
+              <div class="input"><input id="f-real_estate" type="number" inputmode="numeric" min="0" max="20" step="1" required aria-describedby="err-real_estate"></div>
+              <p class="field__error" id="err-real_estate" role="alert" hidden></p>
+            </div>
+          </div>
+
+          <!-- Historique de retards -->
+          <div class="card" role="group" aria-labelledby="g-late">
+            <h2 class="card__title" id="g-late">Historique de retards</h2>
+
+            <div class="field">
+              <div class="field__head">
+                <label for="f-late_30_59">Retards de 30 à 59 jours</label>
+                <span class="tip">
+                  <button type="button" class="tip__btn" aria-describedby="tip-late" aria-label="Aide : retards de paiement">?</button>
+                  <span class="tip__body" role="tooltip" id="tip-late">Nombre de fois où le client a payé avec un retard de 30 à 59 jours (puis 60 à 89 jours, puis 90 jours et plus).</span>
+                </span>
+              </div>
+              <div class="input"><input id="f-late_30_59" type="number" inputmode="numeric" min="0" max="20" step="1" required aria-describedby="err-late_30_59"></div>
+              <p class="field__error" id="err-late_30_59" role="alert" hidden></p>
+            </div>
+
+            <div class="field">
+              <div class="field__head"><label for="f-late_60_89">Retards de 60 à 89 jours</label></div>
+              <div class="input"><input id="f-late_60_89" type="number" inputmode="numeric" min="0" max="20" step="1" required aria-describedby="err-late_60_89"></div>
+              <p class="field__error" id="err-late_60_89" role="alert" hidden></p>
+            </div>
+
+            <div class="field">
+              <div class="field__head"><label for="f-late_90">Retards de 90 jours et plus</label></div>
+              <div class="input"><input id="f-late_90" type="number" inputmode="numeric" min="0" max="20" step="1" required aria-describedby="err-late_90"></div>
+              <p class="field__error" id="err-late_90" role="alert" hidden></p>
+            </div>
+          </div>
+        </div>
+
+        <p class="notice notice--error" id="form-alert" role="alert" hidden style="margin-top:1rem"></p>
+
+        <div class="form-actions">
+          <button type="submit" class="btn btn--primary" id="submit-btn">
+            <span class="spinner" id="submit-spinner" hidden></span>
+            <span id="submit-label">Évaluer le client</span>
+          </button>
+          <button type="button" class="btn btn--ghost" id="reset-btn">Réinitialiser</button>
+        </div>
+      </form>
+
+      <!-- Résultat : affiché uniquement après la réponse de l'API -->
+      <section id="result" aria-live="polite" aria-busy="false" hidden>
+        <div class="card result" id="result-loading" hidden>
+          <div class="result__top">
+            <div class="skeleton" style="width:220px;height:220px;border-radius:50%"></div>
+            <div style="display:grid;gap:0.9rem;width:100%">
+              <div class="skeleton" style="height:36px;width:140px"></div>
+              <div class="skeleton" style="height:18px;width:min(420px,100%)"></div>
+              <div class="skeleton" style="height:18px;width:min(300px,100%)"></div>
+            </div>
+          </div>
+          <p class="sr-only">Évaluation en cours…</p>
+        </div>
+
+        <article class="card result" id="result-card" aria-labelledby="result-title" hidden>
+          <h2 class="card__title" id="result-title" tabindex="-1">Résultat</h2>
+
+          <div class="result__top" style="margin-top:1.25rem">
+            <div id="gauge" class="gauge"></div>
+            <div class="result__summary">
+              <span id="result-badge" class="badge"></span>
+              <p id="result-sentence" class="result__sentence"></p>
+              <p id="zone-note" class="notice" hidden></p>
+              <p class="result__meta">
+                <span>Probabilité <strong id="result-prob"></strong></span>
+                <span>Seuil de refus <strong id="result-threshold"></strong></span>
+                <span>Zone <strong id="result-zone" style="font-family:var(--font-body)"></strong></span>
+              </p>
+            </div>
+          </div>
+
+          <div class="result__shap">
+            <h3>Ce qui a pesé dans la décision</h3>
+            <p class="muted" style="font-size:0.9rem">Chaque barre montre de combien une variable pousse la décision pour ce client : vers la droite, vers le refus ; vers la gauche, vers l'acceptation.</p>
+            <div id="shap-chart"></div>
+            <ul class="legend">
+              <li><i class="i-pos"></i>Augmente le risque (vers le refus)</li>
+              <li><i class="i-neg"></i>Réduit le risque (vers l'acceptation)</li>
+            </ul>
+          </div>
+
+          <details class="request">
+            <summary>Voir la requête envoyée à l'API</summary>
+            <pre id="request-json"></pre>
+          </details>
+
+          <p class="disclaimer">Ce seuil repose sur une hypothèse de coût illustrative (k&nbsp;=&nbsp;<span data-k>10</span>) : accorder un crédit à un mauvais payeur est supposé coûter <span data-k>10</span> fois plus que refuser un bon client. Projet portfolio, pas un outil de décision réel.</p>
+        </article>
+      </section>
+    </div>
+  </main>
+
+  <footer class="footer">
+    <div class="container footer__inner">
+      <p>Projet portfolio — PFE Data Science</p>
+      <p class="footer__links">
+        <span>Données : <em>Give Me Some Credit</em> (Kaggle)</span>
+        <a data-github href="#" hidden>GitHub</a>
+      </p>
+    </div>
+  </footer>
+</body>
+</html>

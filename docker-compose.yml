@@ -5,6 +5,9 @@ services:
       dockerfile: Dockerfile.api
     ports:
       - "8000:8000"
+    environment:
+      # CORS : seules ces origines (le frontend) peuvent appeler l'API depuis un navigateur
+      CORS_ORIGINS: http://localhost:3000,http://127.0.0.1:3000
     # /health renvoie 503 tant que le modèle n'est pas chargé : le conteneur n'est "healthy" qu'ensuite
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health', timeout=3)"]
@@ -13,15 +16,24 @@ services:
       retries: 5
       start_period: 15s
 
-  dashboard:
+  frontend:
     build:
       context: .
-      dockerfile: Dockerfile.dashboard
+      dockerfile: Dockerfile.frontend
     ports:
-      - "8501:8501"
+      - "3000:80"
     environment:
-      # Dans le réseau docker-compose, l'API est joignable par le nom du service (pas localhost)
-      API_URL: http://api:8000
+      # URL de l'API telle que le NAVIGATEUR la voit (pas depuis le réseau Docker) : le port 8000 est
+      # publié sur la machine hôte. Modifiable sans toucher au code : API_URL=... docker compose up
+      API_URL: ${API_URL:-http://localhost:8000}
+      # Lien GitHub du pied de page (masqué s'il est vide) : GITHUB_URL=https://github.com/... docker compose up
+      GITHUB_URL: ${GITHUB_URL:-}
+    healthcheck:
+      # 127.0.0.1 et non localhost : dans l'image alpine, localhost se résout en IPv6 alors que nginx écoute en IPv4
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1/index.html"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
     depends_on:
       api:
         condition: service_healthy

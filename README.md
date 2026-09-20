@@ -98,7 +98,8 @@ Variables les plus influentes (SHAP) : taux d'utilisation du crédit renouvelabl
 
 ## Utilisation
 
-Le modèle final est exposé par une API (FastAPI) et un dashboard (Streamlit), lancés ensemble avec Docker.
+Le modèle final est exposé par une API (FastAPI) et un site web statique (HTML/CSS/JS sans framework,
+servi par nginx), lancés ensemble avec Docker.
 
 ### Lancer avec Docker
 
@@ -108,13 +109,33 @@ docker compose up --build
 
 | Service | URL | Rôle |
 |---|---|---|
-| API | http://localhost:8000 | `POST /predict`, `GET /health` |
+| Site web | http://localhost:3000 | Accueil avec démo en direct, outil d'évaluation (`app.html`), page modèle (`model.html`) |
+| API | http://localhost:8000 | `POST /predict`, `GET /health`, `GET /model-info` |
 | Documentation Swagger | http://localhost:8000/docs | Tester l'API depuis le navigateur |
-| Dashboard | http://localhost:8501 | Formulaire client, décision et facteurs d'influence |
 
-Le dashboard n'importe pas le modèle : il appelle l'API à l'adresse donnée par la variable
-d'environnement `API_URL` (`http://api:8000` dans `docker-compose.yml`). Il ne démarre qu'une fois
-l'API prête (`/health` renvoie 503 tant que le modèle n'est pas chargé). Arrêt : `docker compose down`.
+Arrêt : `docker compose down`.
+
+![Page d'accueil](docs/screenshots/accueil.png)
+
+![Outil d'évaluation d'un client (profil en zone limite)](docs/screenshots/outil.png)
+
+![Page modèle : performances sur le test et variables les plus influentes](docs/screenshots/modele.png)
+
+**Comment le site fonctionne.** Le navigateur appelle directement l'API. Le frontend ne contient aucun chiffre du
+modèle en dur : les indicateurs de la page « Modèle » viennent de `GET /model-info` (résultats du test, évalué une
+seule fois, extraits du notebook 04 par `python -m src.export_model_info`). Le revenu peut être saisi en MAD, EUR ou
+USD à taux fixe indicatif (affichage uniquement) : il est **toujours reconverti en USD** avant l'appel à l'API, car le
+modèle a été entraîné sur des revenus en USD.
+
+**Configuration** (variables d'environnement, sans toucher au code) :
+
+| Variable | Service | Rôle | Défaut |
+|---|---|---|---|
+| `API_URL` | frontend | URL de l'API **vue depuis le navigateur** (écrite dans `js/config.js` au démarrage par nginx) | `http://localhost:8000` |
+| `GITHUB_URL` | frontend | Lien GitHub du pied de page (masqué s'il est vide) | vide |
+| `CORS_ORIGINS` | api | Origines autorisées à appeler l'API depuis un navigateur, séparées par des virgules | `*` (dev) ; `docker-compose.yml` la restreint au frontend |
+
+Exemple : `GITHUB_URL=https://github.com/<utilisateur>/<depot> docker compose up -d`.
 
 ### Exemple de requête
 
@@ -164,15 +185,18 @@ Les entrées invalides renvoient un code 422 avec un message par champ, par exem
 ### Sans Docker (développement)
 
 ```bash
-pip install -r requirements-api.txt -r requirements-dashboard.txt
+pip install -r requirements-api.txt
 uvicorn app.main:app --reload                      # API sur http://localhost:8000
-API_URL=http://localhost:8000 streamlit run app/dashboard.py
+python -m http.server 3000 --directory frontend    # site sur http://localhost:3000
 ```
+
+Le site est du HTML/CSS/JS pur, sans étape de build : n'importe quel serveur statique convient, et
+`frontend/js/config.js` contient l'URL de l'API par défaut (`http://localhost:8000`).
 
 L'API rejoue exactement le pipeline d'entraînement (`src/preprocessing.py`) avec les paramètres appris
 sur le train (`models/cleaning_params.json`, régénérable avec `python -m src.export_cleaning_params`).
-Les images Docker utilisent `requirements-api.txt` et `requirements-dashboard.txt` (dépendances minimales
-aux versions de l'entraînement) ; `requirements.txt` décrit l'environnement de développement complet.
+L'image de l'API utilise `requirements-api.txt` (dépendances minimales aux versions de l'entraînement) ;
+`requirements.txt` décrit l'environnement de développement complet.
 
 ## Structure du projet
 
@@ -182,11 +206,14 @@ credit-scoring/
 ├── data/processed/      # Splits train/test générés par l'EDA
 ├── notebooks/           # Notebooks Jupyter (EDA, baseline, modélisation, interprétation)
 ├── src/                 # Pipeline de preprocessing réutilisable
-├── app/                 # API FastAPI (main.py) et dashboard Streamlit (dashboard.py)
-├── models/              # Modèle final, scaler, seuil et paramètres de nettoyage
-├── Dockerfile.api / Dockerfile.dashboard / docker-compose.yml
+├── app/                 # API FastAPI (main.py)
+├── frontend/            # Site statique : index.html, app.html, model.html, css/, js/, assets/
+├── nginx/               # Modèle de configuration nginx du frontend
+├── models/              # Modèle final, scaler, seuil, paramètres de nettoyage, résultats du test
+├── docs/screenshots/    # Captures d'écran du site
+├── Dockerfile.api / Dockerfile.frontend / docker-compose.yml
 ├── requirements.txt     # Environnement de développement complet
-├── requirements-api.txt / requirements-dashboard.txt
+├── requirements-api.txt # Dépendances minimales de l'API
 └── README.md
 ```
 

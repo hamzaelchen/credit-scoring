@@ -18,6 +18,7 @@ import numpy as np
 import pandas as pd
 from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.exceptions import RequestValidationError
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -34,7 +35,11 @@ def load_artifacts():
     """Charge tous les fichiers produits pendant l'entraînement."""
     config = json.loads((MODELS_DIR / "threshold_config.json").read_text(encoding="utf-8"))
     feature_info = joblib.load(MODELS_DIR / "feature_list.joblib")
+    # Résultats du test pour /model-info : optionnel, l'API de scoring fonctionne sans
+    info_path = MODELS_DIR / "model_info.json"
+    model_info = json.loads(info_path.read_text(encoding="utf-8")) if info_path.exists() else None
     return {
+        "model_info": model_info,
         "model": joblib.load(MODELS_DIR / "final_model.joblib"),
         "scaler": joblib.load(MODELS_DIR / "scaler.joblib"),
         "cleaning_params": json.loads((MODELS_DIR / "cleaning_params.json").read_text(encoding="utf-8")),
@@ -64,6 +69,17 @@ app = FastAPI(
     ),
     version="1.0.0",
     lifespan=lifespan,
+)
+
+# CORS : origines autorisées à appeler l'API depuis un navigateur (le frontend statique).
+# Variable CORS_ORIGINS (URLs séparées par des virgules). "*" par défaut = pratique en développement ;
+# en production, la restreindre à l'URL du frontend (docker-compose le fait pour le port 3000).
+CORS_ORIGINS = [o.strip() for o in os.environ.get("CORS_ORIGINS", "*").split(",") if o.strip()]
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=CORS_ORIGINS,
+    allow_methods=["GET", "POST"],
+    allow_headers=["Content-Type"],
 )
 
 
@@ -204,6 +220,17 @@ def health():
         "model": state["model_name"],
         "threshold": state["threshold"],
     }
+
+
+@app.get("/model-info", summary="Performances du modèle sur le test et importance globale des variables")
+def model_info():
+    # Chiffres extraits du notebook 04 (test évalué une seule fois) : voir src/export_model_info.py
+    if state.get("model_info") is None:
+        raise HTTPException(
+            status_code=404,
+            detail="models/model_info.json absent : générez-le avec `python -m src.export_model_info`.",
+        )
+    return state["model_info"]
 
 
 @app.post("/predict", response_model=Prediction, summary="Évalue un client")

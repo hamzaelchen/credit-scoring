@@ -1,4 +1,0 @@
-# Dépendances minimales du dashboard (il ne charge pas le modèle : il appelle l'API)
-streamlit==1.64.0
-requests==2.34.2
-matplotlib==3.11.2

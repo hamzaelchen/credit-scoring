@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Modèle et méthode — Credit Scoring</title>
+  <meta name="description" content="Performances du modèle sur le jeu de test, variables les plus influentes et méthode d'entraînement, en toute transparence.">
+  <meta name="theme-color" content="#0a0a0c">
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Inter:wght@400;500&family=Space+Grotesk:wght@500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+  <script src="js/config.js"></script>
+  <script src="js/charts.js" defer></script>
+  <script src="js/app.js" defer></script>
+</head>
+<body data-page="model">
+  <a class="skip-link" href="#main">Aller au contenu</a>
+  <div class="bg-mesh" aria-hidden="true"><span></span><span></span><span></span></div>
+
+  <header class="nav">
+    <div class="container nav__inner">
+      <a class="brand" href="index.html" aria-label="Credit Scoring, accueil">
+        <svg width="26" height="26" viewBox="0 0 26 26" aria-hidden="true">
+          <circle cx="13" cy="13" r="10" fill="none" stroke="#2a2a2e" stroke-width="3"/>
+          <circle cx="13" cy="13" r="10" fill="none" stroke="#4d7fff" stroke-width="3" stroke-linecap="round" stroke-dasharray="38 63" transform="rotate(-90 13 13)"/>
+        </svg>
+        <span>Credit Scoring</span>
+      </a>
+      <nav aria-label="Navigation principale">
+        <ul class="nav__links">
+          <li><a href="app.html">Outil</a></li>
+          <li><a href="model.html" aria-current="page">Modèle</a></li>
+        </ul>
+      </nav>
+    </div>
+  </header>
+
+  <main id="main">
+    <div class="container">
+      <header class="page-head">
+        <p class="eyebrow">Transparence du modèle</p>
+        <h1>Performances et méthode</h1>
+        <p class="lead">Les indicateurs viennent du jeu de test, utilisé une seule fois, et sont chargés depuis l'API : aucun n'est écrit à la main dans la page.</p>
+      </header>
+
+      <p class="notice notice--error" id="model-error" role="alert" hidden>Chiffres indisponibles : l'API ne répond pas. Lancez-la avec <span class="mono">docker compose up</span>, puis rechargez la page.</p>
+
+      <section class="section" aria-labelledby="perf-title" style="padding-top:1rem">
+        <div class="section__head">
+          <h2 id="perf-title">Résultats sur le jeu de test</h2>
+          <p class="muted">Chaque indicateur est donné avec son intervalle de confiance à 95 % (bootstrap sur le test), et comparé à la validation croisée réalisée pendant l'entraînement.</p>
+        </div>
+
+        <div class="tiles tiles--4">
+          <article class="card tile" data-metric="average_precision" data-format="num">
+            <h3 class="tile__label">AUC-PR</h3>
+            <p class="tile__value" data-role="value">—</p>
+            <p class="tile__ci" data-role="ci"></p>
+            <p class="tile__ci" data-role="cv"></p>
+            <p class="tile__desc" data-role="desc"></p>
+          </article>
+          <article class="card tile" data-metric="roc_auc" data-format="num">
+            <h3 class="tile__label">AUC-ROC</h3>
+            <p class="tile__value" data-role="value">—</p>
+            <p class="tile__ci" data-role="ci"></p>
+            <p class="tile__ci" data-role="cv"></p>
+            <p class="tile__desc" data-role="desc"></p>
+          </article>
+          <article class="card tile" data-metric="recall" data-format="pct">
+            <h3 class="tile__label">Recall</h3>
+            <p class="tile__value" data-role="value">—</p>
+            <p class="tile__ci" data-role="ci"></p>
+            <p class="tile__ci" data-role="cv"></p>
+            <p class="tile__desc" data-role="desc"></p>
+          </article>
+          <article class="card tile" data-metric="precision" data-format="pct">
+            <h3 class="tile__label">Précision</h3>
+            <p class="tile__value" data-role="value">—</p>
+            <p class="tile__ci" data-role="ci"></p>
+            <p class="tile__ci" data-role="cv"></p>
+            <p class="tile__desc" data-role="desc"></p>
+          </article>
+        </div>
+        <p class="muted" id="confusion" style="margin-top:1.25rem;font-size:0.9rem"></p>
+      </section>
+
+      <section class="section" aria-labelledby="shap-title" style="padding-top:1rem">
+        <div class="section__head">
+          <h2 id="shap-title">Variables les plus influentes</h2>
+          <p class="muted">Importance moyenne (|SHAP|) des principales variables, en part de l'importance totale. Elle est calculée en out-of-fold sur le train : chaque client est expliqué par un modèle qui ne l'a jamais vu.</p>
+        </div>
+        <div class="card">
+          <div id="global-chart"></div>
+          <ul class="legend" style="margin-top:1rem">
+            <li><span class="mono" aria-hidden="true">↑</span>Une valeur plus élevée augmente le risque</li>
+            <li><span class="mono" aria-hidden="true">↓</span>Une valeur plus élevée réduit le risque</li>
+            <li><span class="mono" aria-hidden="true">↕</span>Effet non monotone</li>
+          </ul>
+        </div>
+      </section>
+
+      <section class="section" aria-labelledby="method-title" style="padding-top:1rem">
+        <div class="section__head">
+          <h2 id="method-title">Méthode, dans l'ordre</h2>
+          <p class="muted">L'ordre compte : c'est lui qui évite les fuites de données entre l'entraînement et le test.</p>
+        </div>
+        <ol class="steps">
+          <li><strong>Données</strong><span>Environ 150 000 clients du jeu <em>Give Me Some Credit</em> (Kaggle), dont 6,7 % ont connu un défaut grave dans les 2 ans.</span></li>
+          <li><strong>Découpage avant tout le reste</strong><span>80 % pour l'entraînement, 20 % pour le test, stratifié sur la cible. Le test n'est plus touché jusqu'à l'évaluation finale.</span></li>
+          <li><strong>Préparation</strong><span>Codes d'erreur 96 et 98 traités comme valeurs manquantes, imputation, valeurs extrêmes plafonnées, cinq variables dérivées. Toutes les statistiques sont apprises sur l'entraînement uniquement.</span></li>
+          <li><strong>Modèle</strong><span>LightGBM, comparé à une régression logistique, une forêt aléatoire et XGBoost. Hyperparamètres réglés par recherche aléatoire sur l'AUC-PR, en validation croisée stratifiée à 5 blocs.</span></li>
+          <li><strong>Seuil de décision</strong><span>Un client est refusé si sa probabilité de défaut atteint <span class="mono" data-threshold>—</span>. Ce seuil découle d'une hypothèse de coût : accorder un crédit à un mauvais payeur coûte <span class="mono">k&nbsp;=&nbsp;<span data-k>10</span></span> fois plus que refuser un bon client.</span></li>
+          <li><strong>Évaluation unique</strong><span>Le test est utilisé une seule fois. Ses résultats sont cohérents avec la validation croisée : pas de signe de surapprentissage.</span></li>
+        </ol>
+      </section>
+
+      <section class="section" aria-labelledby="limits-title" style="padding-top:1rem">
+        <div class="section__head">
+          <h2 id="limits-title">Limites à connaître</h2>
+        </div>
+        <ul class="limits">
+          <li><strong>Le seuil repose sur une hypothèse.</strong> Le rapport de coût k est illustratif ; une banque réelle utiliserait ses propres coûts, et le seuil changerait.</li>
+          <li><strong>Revenus en USD.</strong> Le modèle a été entraîné sur des revenus en dollars : les conversions du site ne sont qu'indicatives, et la distribution des revenus d'un autre pays peut différer.</li>
+          <li><strong>Pas de validation dans le temps.</strong> Le découpage entraînement/test est aléatoire, pas chronologique : une dérive des comportements n'est pas mesurée.</li>
+          <li><strong>Des défauts restent invisibles.</strong> Une part des défauts échappe au modèle (voir le décompte ci-dessus) : ces clients ressemblent souvent à des clients sains avec les seules variables disponibles, par exemple sans aucun retard passé.</li>
+        </ul>
+        <p style="margin-top:1.5rem"><a data-github href="#" hidden>Lire le code et le README sur GitHub →</a></p>
+      </section>
+    </div>
+  </main>
+
+  <footer class="footer">
+    <div class="container footer__inner">
+      <p>Projet portfolio — PFE Data Science</p>
+      <p class="footer__links">
+        <span>Données : <em>Give Me Some Credit</em> (Kaggle)</span>
+        <a data-github href="#" hidden>GitHub</a>
+      </p>
+    </div>
+  </footer>
+</body>
+</html>

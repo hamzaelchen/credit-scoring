@@ -1,0 +1,94 @@
+{
+  "model": "LightGBM",
+  "threshold": 0.57,
+  "cost_ratio_assumption": 10,
+  "borderline_margin": 0.1,
+  "test": {
+    "n_clients": 30000,
+    "n_defaults": 2005,
+    "default_rate": 0.0668,
+    "metrics": {
+      "average_precision": {
+        "value": 0.406,
+        "ci_low": 0.383,
+        "ci_high": 0.43,
+        "cv_mean": 0.403
+      },
+      "roc_auc": {
+        "value": 0.869,
+        "ci_low": 0.861,
+        "ci_high": 0.878,
+        "cv_mean": 0.864
+      },
+      "recall": {
+        "value": 0.711,
+        "ci_low": 0.691,
+        "ci_high": 0.73,
+        "cv_mean": 0.702
+      },
+      "precision": {
+        "value": 0.258,
+        "ci_low": 0.246,
+        "ci_high": 0.268,
+        "cv_mean": 0.261
+      }
+    },
+    "confusion": {
+      "tp": 1425,
+      "fn": 580,
+      "fp": 4099,
+      "tn": 23896
+    }
+  },
+  "global_importance": [
+    {
+      "feature": "RevolvingUtilizationOfUnsecuredLines",
+      "mean_abs_shap": 0.694,
+      "share_pct": 29.979,
+      "effect": "increases"
+    },
+    {
+      "feature": "total_delinquency",
+      "mean_abs_shap": 0.509,
+      "share_pct": 21.974,
+      "effect": "increases"
+    },
+    {
+      "feature": "age",
+      "mean_abs_shap": 0.238,
+      "share_pct": 10.269,
+      "effect": "decreases"
+    },
+    {
+      "feature": "DebtRatio",
+      "mean_abs_shap": 0.15,
+      "share_pct": 6.484,
+      "effect": "increases"
+    },
+    {
+      "feature": "NumberOfOpenCreditLinesAndLoans",
+      "mean_abs_shap": 0.106,
+      "share_pct": 4.597,
+      "effect": "increases"
+    },
+    {
+      "feature": "MonthlyIncome",
+      "mean_abs_shap": 0.099,
+      "share_pct": 4.266,
+      "effect": "decreases"
+    },
+    {
+      "feature": "NumberRealEstateLoansOrLines",
+      "mean_abs_shap": 0.095,
+      "share_pct": 4.103,
+      "effect": "mixed"
+    },
+    {
+      "feature": "total_credit_lines",
+      "mean_abs_shap": 0.086,
+      "share_pct": 3.726,
+      "effect": "increases"
+    }
+  ],
+  "source": "notebooks/04_interpretation_evaluation.ipynb (sections 1.1 et 3.3) ; test évalué une seule fois"
+}

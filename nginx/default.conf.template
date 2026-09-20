@@ -1,0 +1,27 @@
+# Configuration nginx minimale du frontend statique.
+# C'est un MODÈLE : au démarrage, l'image officielle nginx remplace ${API_URL} et ${GITHUB_URL}
+# par les variables d'environnement (envsubst) et écrit le résultat dans /etc/nginx/conf.d/default.conf.
+server {
+    listen 80;
+    server_name _;
+
+    root /usr/share/nginx/html;
+    index index.html;
+
+    # js/config.js est généré à la volée depuis les variables d'environnement :
+    # l'URL de l'API n'est jamais écrite en dur dans le code du site.
+    location = /js/config.js {
+        default_type application/javascript;
+        add_header Cache-Control "no-store";
+        return 200 'window.APP_CONFIG = { API_URL: "${API_URL}", GITHUB_URL: "${GITHUB_URL}" };';
+    }
+
+    # Site statique : pas de mise en cache agressive (le portfolio évolue souvent)
+    location / {
+        add_header Cache-Control "no-cache";
+        try_files $uri $uri/ =404;
+    }
+
+    gzip on;
+    gzip_types text/css application/javascript image/svg+xml;
+}
