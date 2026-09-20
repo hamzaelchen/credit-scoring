@@ -1,0 +1,27 @@
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    ports:
+      - "8000:8000"
+    # /health renvoie 503 tant que le modèle n'est pas chargé : le conteneur n'est "healthy" qu'ensuite
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health', timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+  dashboard:
+    build:
+      context: .
+      dockerfile: Dockerfile.dashboard
+    ports:
+      - "8501:8501"
+    environment:
+      # Dans le réseau docker-compose, l'API est joignable par le nom du service (pas localhost)
+      API_URL: http://api:8000
+    depends_on:
+      api:
+        condition: service_healthy

@@ -1,0 +1,11 @@
+# Dépendances minimales de l'API (versions identiques à l'environnement d'entraînement :
+# un modèle sérialisé avec joblib doit être rechargé avec les mêmes versions de scikit-learn/lightgbm)
+fastapi==0.141.1
+uvicorn==0.53.0
+pydantic==2.13.5
+lightgbm==4.7.0
+scikit-learn==1.9.1
+pandas==3.0.6
+numpy==2.5.3
+scipy==1.18.1
+joblib==1.6.0

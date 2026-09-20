@@ -1,0 +1,12 @@
+{
+  "late_medians": {
+    "NumberOfTime30-59DaysPastDueNotWorse": 0.0,
+    "NumberOfTime60-89DaysPastDueNotWorse": 0.0,
+    "NumberOfTimes90DaysLate": 0.0
+  },
+  "income_median": 5390.0,
+  "dependents_mode": 0.0,
+  "age_median": 52.0,
+  "debtratio_cap": 4977.0,
+  "revolving_cap": 1.0944386634299974
+}

@@ -1,0 +1,24 @@
+FROM python:3.14-slim
+
+# LightGBM a besoin d'OpenMP (libgomp), absent de l'image slim
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends libgomp1 \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /code
+
+# Les dépendances d'abord : cette couche n'est reconstruite que si requirements-api.txt change
+COPY requirements-api.txt .
+RUN pip install --no-cache-dir -r requirements-api.txt
+
+# Code et artefacts du modèle (data/, notebooks/ et .venv/ sont exclus par .dockerignore)
+COPY src/ src/
+COPY app/ app/
+COPY models/ models/
+
+# Utilisateur non-root
+RUN useradd --create-home appuser
+USER appuser
+
+EXPOSE 8000
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]

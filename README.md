@@ -64,14 +64,28 @@ Les deux types d'erreurs n'ont pas le même coût pour la banque :
 Cette asymétrie justifie de privilégier le **recall sur la classe défaut** plutôt que l'accuracy,
 et guidera plus tard le choix du seuil de décision (pas nécessairement 0.5) une fois un modèle
 entraîné.
-
 ## Résultats
 
-_À compléter après la phase de modélisation._
+Modèle final : LightGBM (tuné sur AUC-PR en CV 5 folds), seuil de décision = 0.57.
+
+| Métrique | CV (5 folds) | Test (unique) |
+|---|---|---|
+| AUC-PR | 0.403 ± 0.004 | 0.406 [IC95% 0.383–0.430] |
+| AUC-ROC | 0.864 | 0.869 |
+| Recall (défauts) | 0.702 | 0.711 |
+| Precision (défauts) | 0.261 | 0.258 |
+
+Traduction métier sur le test : 71 % des mauvais payeurs sont détectés, au prix de refuser 14,6 % des bons clients (18,4 % de refus au total). Les métriques CV et test sont cohérentes — pas de signe d'overfitting.
+
+Variables les plus influentes (SHAP) : taux d'utilisation du crédit renouvelable (30 %), total des retards passés — variable créée en feature engineering (22 %), âge (10 %), taux d'endettement (6,5 %), nombre de lignes de crédit ouvertes (4,6 %).
 
 ## Limites
 
-_À compléter._
+- **Seuil de décision hypothétique** : calibré sur un rapport de coût k=10 illustratif (coût d'un mauvais payeur accepté = 10x coût d'un bon client refusé), à remplacer par de vraies données de coût métier en production.
+- **Plafond de performance structurel** : environ 21 % des mauvais payeurs non détectés ont un profil statistiquement indiscernable des bons clients avec les variables disponibles — suggère un besoin de données externes (bureau de crédit, historique bancaire complet) plutôt qu'un problème de modèle.
+- **Pas de validation temporelle** : le split train/test est aléatoire, pas chronologique — en production, il faudrait valider sur des données postérieures pour détecter un éventuel drift.
+- **Signal contre-intuitif non exploré** : l'absence de revenu déclaré (`income_was_missing`) est associée à un risque plus faible, à l'inverse de l'hypothèse initiale — mériterait une investigation métier plus poussée.
+
 
 ## Prochaines étapes
 
@@ -82,16 +96,97 @@ _À compléter._
 - Interprétabilité du modèle final avec SHAP.
 - Choix d'un seuil de décision aligné sur le coût métier des erreurs.
 
+## Utilisation
+
+Le modèle final est exposé par une API (FastAPI) et un dashboard (Streamlit), lancés ensemble avec Docker.
+
+### Lancer avec Docker
+
+```bash
+docker compose up --build
+```
+
+| Service | URL | Rôle |
+|---|---|---|
+| API | http://localhost:8000 | `POST /predict`, `GET /health` |
+| Documentation Swagger | http://localhost:8000/docs | Tester l'API depuis le navigateur |
+| Dashboard | http://localhost:8501 | Formulaire client, décision et facteurs d'influence |
+
+Le dashboard n'importe pas le modèle : il appelle l'API à l'adresse donnée par la variable
+d'environnement `API_URL` (`http://api:8000` dans `docker-compose.yml`). Il ne démarre qu'une fois
+l'API prête (`/health` renvoie 503 tant que le modèle n'est pas chargé). Arrêt : `docker compose down`.
+
+### Exemple de requête
+
+L'API attend les colonnes **originales** du dataset (sans `id` ni la cible). `MonthlyIncome` et
+`NumberOfDependents` sont optionnels (imputés comme à l'entraînement s'ils sont absents).
+Avec `?explain=true`, la réponse contient les 5 facteurs les plus influents pour ce client (SHAP local).
+
+```bash
+curl -X POST "http://localhost:8000/predict?explain=true" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "RevolvingUtilizationOfUnsecuredLines": 0.30,
+    "age": 45,
+    "NumberOfTime30-59DaysPastDueNotWorse": 0,
+    "DebtRatio": 0.35,
+    "MonthlyIncome": 5400,
+    "NumberOfOpenCreditLinesAndLoans": 8,
+    "NumberOfTimes90DaysLate": 0,
+    "NumberRealEstateLoansOrLines": 1,
+    "NumberOfTime60-89DaysPastDueNotWorse": 0,
+    "NumberOfDependents": 0
+  }'
+```
+
+Réponse (`shap_value` en log-odds : positif = pousse vers le refus, négatif = vers l'acceptation) :
+
+```json
+{
+  "default_probability": 0.2299,
+  "decision": "accepté",
+  "threshold": 0.57,
+  "top_factors": [
+    {"feature": "total_delinquency", "value": 0.0, "shap_value": -0.3075},
+    {"feature": "RevolvingUtilizationOfUnsecuredLines", "value": 0.3, "shap_value": 0.2395},
+    {"feature": "age", "value": 45.0, "shap_value": 0.2087},
+    {"feature": "NumberRealEstateLoansOrLines", "value": 1.0, "shap_value": -0.1108},
+    {"feature": "NumberOfOpenCreditLinesAndLoans", "value": 8.0, "shap_value": -0.0942}
+  ]
+}
+```
+
+Sous PowerShell, utiliser `curl.exe` (et non l'alias `curl`) avec le JSON dans un fichier : `-d "@client.json"`.
+
+Les entrées invalides renvoient un code 422 avec un message par champ, par exemple pour un âge de -5 :
+`{"error": "Données d'entrée invalides", "details": [{"field": "age", "message": "doit être supérieur ou égal à 18", "received_value": -5}]}`.
+
+### Sans Docker (développement)
+
+```bash
+pip install -r requirements-api.txt -r requirements-dashboard.txt
+uvicorn app.main:app --reload                      # API sur http://localhost:8000
+API_URL=http://localhost:8000 streamlit run app/dashboard.py
+```
+
+L'API rejoue exactement le pipeline d'entraînement (`src/preprocessing.py`) avec les paramètres appris
+sur le train (`models/cleaning_params.json`, régénérable avec `python -m src.export_cleaning_params`).
+Les images Docker utilisent `requirements-api.txt` et `requirements-dashboard.txt` (dépendances minimales
+aux versions de l'entraînement) ; `requirements.txt` décrit l'environnement de développement complet.
+
 ## Structure du projet
 
 ```
 credit-scoring/
 ├── data/raw/            # Données brutes (jamais modifiées)
 ├── data/processed/      # Splits train/test générés par l'EDA
-├── notebooks/           # Notebooks Jupyter
-├── src/                 # Code source réutilisable
-├── models/              # Modèles entraînés (non versionnés)
-├── requirements.txt
+├── notebooks/           # Notebooks Jupyter (EDA, baseline, modélisation, interprétation)
+├── src/                 # Pipeline de preprocessing réutilisable
+├── app/                 # API FastAPI (main.py) et dashboard Streamlit (dashboard.py)
+├── models/              # Modèle final, scaler, seuil et paramètres de nettoyage
+├── Dockerfile.api / Dockerfile.dashboard / docker-compose.yml
+├── requirements.txt     # Environnement de développement complet
+├── requirements-api.txt / requirements-dashboard.txt
 └── README.md
 ```
 

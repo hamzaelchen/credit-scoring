@@ -1,0 +1,16 @@
+FROM python:3.14-slim
+
+WORKDIR /code
+
+COPY requirements-dashboard.txt .
+RUN pip install --no-cache-dir -r requirements-dashboard.txt
+
+# Seul le dashboard est copié : il n'a besoin ni du modèle ni des données
+COPY app/dashboard.py app/dashboard.py
+
+RUN useradd --create-home appuser
+USER appuser
+
+# L'URL de l'API est fournie par docker-compose (variable d'environnement API_URL)
+EXPOSE 8501
+CMD ["streamlit", "run", "app/dashboard.py", "--server.port=8501", "--server.address=0.0.0.0", "--browser.gatherUsageStats=false"]
