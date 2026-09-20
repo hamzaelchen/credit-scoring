@@ -1,0 +1,44 @@
+{
+  "model": "LightGBM",
+  "threshold": 0.57,
+  "best_params": {
+    "colsample_bytree": 0.798070764044508,
+    "learning_rate": 0.011085122517311707,
+    "max_depth": 8,
+    "min_child_samples": 100,
+    "n_estimators": 761,
+    "num_leaves": 47
+  },
+  "cv_metrics_at_threshold": {
+    "average_precision": 0.4034,
+    "roc_auc": 0.864,
+    "recall": 0.7024,
+    "precision": 0.2608
+  },
+  "features": [
+    "RevolvingUtilizationOfUnsecuredLines",
+    "age",
+    "DebtRatio",
+    "MonthlyIncome",
+    "NumberOfOpenCreditLinesAndLoans",
+    "NumberOfTime30-59DaysPastDueNotWorse",
+    "NumberOfTimes90DaysLate",
+    "NumberRealEstateLoansOrLines",
+    "NumberOfTime60-89DaysPastDueNotWorse",
+    "NumberOfDependents",
+    "total_delinquency",
+    "income_per_dependent",
+    "total_credit_lines",
+    "has_sentinel_delinquency",
+    "income_was_missing",
+    "dependents_was_missing",
+    "debtratio_extreme",
+    "revolving_extreme",
+    "has_real_estate_loan",
+    "age_group_30-40",
+    "age_group_40-50",
+    "age_group_50-60",
+    "age_group_60+"
+  ],
+  "random_state": 42
+}
