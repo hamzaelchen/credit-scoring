@@ -245,10 +245,8 @@ ALLOWED_ORIGINS=http://localhost:3000,https://<utilisateur>.github.io
 
 ### URLs de ce déploiement
 
-*(à compléter une fois les deux services en ligne)*
-
-- API (Render) : `<à compléter>`
-- Site (GitHub Pages) : `<à compléter>`
+- Site (GitHub Pages) : https://hamzaelchen.github.io/credit-scoring/
+- API (Render) : https://credit-scoring-api-09rv.onrender.com (documentation Swagger sur `/docs`)
 
 ## Structure du projet
 

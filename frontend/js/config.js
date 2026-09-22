@@ -7,11 +7,10 @@
      déployée sur Render. Une seule ligne à changer : API_BASE_URL ci-dessous. */
 
 // URL de l'API vue depuis le NAVIGATEUR (pas depuis un conteneur), sans slash final.
-// À REMPLACER par l'URL Render une fois l'API déployée, ex. "https://credit-scoring-api.onrender.com"
-const API_BASE_URL = "http://localhost:8000";
+const API_BASE_URL = "https://credit-scoring-api-09rv.onrender.com";
 
 window.APP_CONFIG = {
   API_URL: API_BASE_URL,
   // URL du dépôt GitHub du projet : le lien du pied de page n'apparaît que si elle est renseignée
-  GITHUB_URL: "",
+  GITHUB_URL: "https://github.com/hamzaelchen/credit-scoring",
 };

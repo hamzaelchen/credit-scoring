@@ -14,10 +14,8 @@ services:
     healthCheckPath: /health
     envVars:
       # Origines autorisées à appeler l'API depuis un navigateur (CORS), séparées par des virgules
-      # (l'origine ne comprend ni chemin ni sous-dossier : https://<utilisateur>.github.io suffit,
-      # même si le site est servi depuis /<nom-du-repo>/). Valeur de départ : seul le frontend de
-      # développement local. Une fois le frontend déployé sur GitHub Pages, ajouter son origine ici
-      # (ou dans Dashboard Render > Environment) et redéployer, par exemple :
-      #   http://localhost:3000,https://<utilisateur>.github.io
+      # (l'origine ne comprend ni chemin ni sous-dossier : https://hamzaelchen.github.io suffit,
+      # même si le site est servi depuis /credit-scoring/). Le frontend de développement local reste
+      # inclus pour pouvoir continuer à tester avec `docker compose up` / `python -m http.server`.
       - key: ALLOWED_ORIGINS
-        value: http://localhost:3000
+        value: http://localhost:3000,https://hamzaelchen.github.io
