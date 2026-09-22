@@ -69,12 +69,21 @@
   const $ = (sel, root = document) => root.querySelector(sel);
   const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 
+  // Hébergeurs gratuits (Render...) mettent l'API en veille après une inactivité : la réveiller peut
+  // prendre jusqu'à 40-50 s. Tant qu'aucune requête n'a abouti, on patiente largement ; une fois l'API
+  // confirmée réveillée, un délai court suffit à détecter une vraie panne sans faire attendre l'utilisateur.
+  let apiAwake = false;
+  const COLD_START_TIMEOUT_MS = 45000;
+  const WARM_TIMEOUT_MS = 8000;
+
   /** Appel à l'API avec délai maximal. Lève une exception si l'API est injoignable. */
   async function api(path, options = {}) {
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 8000);
+    const timeoutMs = apiAwake ? WARM_TIMEOUT_MS : COLD_START_TIMEOUT_MS;
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
     try {
       const res = await fetch(API_URL + path, { ...options, signal: controller.signal });
+      apiAwake = true;   // une réponse, même une erreur HTTP, prouve que le serveur est réveillé
       let data = null;
       try { data = await res.json(); } catch (_) { /* réponse sans corps JSON */ }
       return { ok: res.ok, status: res.status, data };
@@ -188,6 +197,11 @@
 
     async function run() {
       const mine = ++sequence;                       // ignore les réponses devenues obsolètes
+      // Si la réponse tarde, l'API est probablement en train de se réveiller (hébergeur gratuit) :
+      // on ne laisse pas "Connexion…" sans explication pendant les ~45 s que ça peut prendre.
+      const hint = setTimeout(() => {
+        if (mine === sequence) $('#demo-status').textContent = 'Connexion (réveil du service, jusqu’à 50 s)…';
+      }, 4000);
       try {
         const [res, info] = await Promise.all([postJson('/predict', currentClient()), getInfo()]);
         if (mine !== sequence) return;
@@ -207,6 +221,8 @@
         $('#demo-zone').textContent = ZONE_LABELS[zone];
       } catch (_) {
         if (mine === sequence) showOffline();
+      } finally {
+        clearTimeout(hint);
       }
     }
 
@@ -447,7 +463,8 @@
         }
       } catch (_) {
         hideResult();
-        showBanner(`Impossible de joindre l’API à l’adresse ${API_URL}. Vérifiez qu’elle est démarrée.`);
+        showBanner(`Impossible de joindre l’API à l’adresse ${API_URL}. Si elle était inactive depuis un moment, ` +
+          'son réveil peut prendre jusqu’à 50 s : réessayez dans quelques instants.');
         setStatus(null);
       } finally {
         setLoading(false);
@@ -463,11 +480,17 @@
     }
 
     async function refreshStatus() {
+      // Idem que la démo de l'accueil : explique l'attente si l'API doit se réveiller.
+      const hint = setTimeout(() => {
+        $('#status-text').textContent = 'Connexion (réveil du service, jusqu’à 50 s)…';
+      }, 4000);
       try {
         const res = await api('/health');
         setStatus(res.ok ? res.data : null);
       } catch (_) {
         setStatus(null);
+      } finally {
+        clearTimeout(hint);
       }
     }
 
