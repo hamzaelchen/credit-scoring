@@ -72,12 +72,16 @@ app = FastAPI(
 )
 
 # CORS : origines autorisées à appeler l'API depuis un navigateur (le frontend statique).
-# Variable CORS_ORIGINS (URLs séparées par des virgules). "*" par défaut = pratique en développement ;
-# en production, la restreindre à l'URL du frontend (docker-compose le fait pour le port 3000).
-CORS_ORIGINS = [o.strip() for o in os.environ.get("CORS_ORIGINS", "*").split(",") if o.strip()]
+# Variable ALLOWED_ORIGINS (URLs séparées par des virgules, sans slash final), lue au démarrage.
+# Doit inclure à la fois le frontend de développement et le frontend déployé, par exemple :
+#   ALLOWED_ORIGINS=http://localhost:3000,https://<utilisateur>.github.io
+# Défaut "*" ci-dessous = pratique en développement local, mais PEU SÛR en production (n'importe
+# quel site pourrait appeler l'API) — à restreindre explicitement dès que l'URL du frontend déployé
+# est connue (docker-compose.yml et render.yaml le font déjà pour leurs environnements respectifs).
+ALLOWED_ORIGINS = [o.strip() for o in os.environ.get("ALLOWED_ORIGINS", "*").split(",") if o.strip()]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=CORS_ORIGINS,
+    allow_origins=ALLOWED_ORIGINS,
     allow_methods=["GET", "POST"],
     allow_headers=["Content-Type"],
 )
@@ -276,3 +280,11 @@ def predict(
         threshold=state["threshold"],
         top_factors=top_factors,
     )
+
+
+if __name__ == "__main__":
+    # Point d'entrée alternatif pour un hébergeur qui lance `python app/main.py` plutôt que la
+    # commande uvicorn du Dockerfile. PORT est imposé par la plateforme (ex. Render) ; 8000 en local.
+    import uvicorn
+
+    uvicorn.run(app, host="0.0.0.0", port=int(os.environ.get("PORT", 8000)))

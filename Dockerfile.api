@@ -21,4 +21,6 @@ RUN useradd --create-home appuser
 USER appuser
 
 EXPOSE 8000
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Forme shell (pas exec) pour que ${PORT:-8000} soit interprété au démarrage du conteneur :
+# Render impose sa propre valeur de PORT ; en local (docker-compose), elle est absente -> 8000.
+CMD sh -c 'uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}'

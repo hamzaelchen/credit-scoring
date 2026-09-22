@@ -7,7 +7,7 @@ services:
       - "8000:8000"
     environment:
       # CORS : seules ces origines (le frontend) peuvent appeler l'API depuis un navigateur
-      CORS_ORIGINS: http://localhost:3000,http://127.0.0.1:3000
+      ALLOWED_ORIGINS: http://localhost:3000,http://127.0.0.1:3000
     # /health renvoie 503 tant que le modèle n'est pas chargé : le conteneur n'est "healthy" qu'ensuite
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health', timeout=3)"]

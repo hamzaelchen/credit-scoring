@@ -1,0 +1,23 @@
+# Blueprint Render pour l'API de scoring.
+# Utilisation : sur render.com, New > Blueprint, sélectionner ce dépôt GitHub — Render lit ce
+# fichier et crée le service automatiquement. Doc : https://render.com/docs/blueprint-spec
+#
+# Render fournit lui-même la variable PORT au conteneur ; Dockerfile.api l'utilise déjà
+# (CMD ... --port ${PORT:-8000}), donc rien à configurer de ce côté.
+services:
+  - type: web
+    name: credit-scoring-api
+    env: docker
+    dockerfilePath: ./Dockerfile.api
+    dockerContext: .
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      # Origines autorisées à appeler l'API depuis un navigateur (CORS), séparées par des virgules
+      # (l'origine ne comprend ni chemin ni sous-dossier : https://<utilisateur>.github.io suffit,
+      # même si le site est servi depuis /<nom-du-repo>/). Valeur de départ : seul le frontend de
+      # développement local. Une fois le frontend déployé sur GitHub Pages, ajouter son origine ici
+      # (ou dans Dashboard Render > Environment) et redéployer, par exemple :
+      #   http://localhost:3000,https://<utilisateur>.github.io
+      - key: ALLOWED_ORIGINS
+        value: http://localhost:3000

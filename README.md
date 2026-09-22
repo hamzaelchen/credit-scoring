@@ -133,7 +133,7 @@ modèle a été entraîné sur des revenus en USD.
 |---|---|---|---|
 | `API_URL` | frontend | URL de l'API **vue depuis le navigateur** (écrite dans `js/config.js` au démarrage par nginx) | `http://localhost:8000` |
 | `GITHUB_URL` | frontend | Lien GitHub du pied de page (masqué s'il est vide) | vide |
-| `CORS_ORIGINS` | api | Origines autorisées à appeler l'API depuis un navigateur, séparées par des virgules | `*` (dev) ; `docker-compose.yml` la restreint au frontend |
+| `ALLOWED_ORIGINS` | api | Origines autorisées à appeler l'API depuis un navigateur, séparées par des virgules | `*` (dev) ; `docker-compose.yml` la restreint au frontend |
 
 Exemple : `GITHUB_URL=https://github.com/<utilisateur>/<depot> docker compose up -d`.
 
@@ -198,6 +198,58 @@ sur le train (`models/cleaning_params.json`, régénérable avec `python -m src.
 L'image de l'API utilise `requirements-api.txt` (dépendances minimales aux versions de l'entraînement) ;
 `requirements.txt` décrit l'environnement de développement complet.
 
+## Déploiement
+
+Le projet est prévu pour être déployé gratuitement en deux morceaux : l'API sur **Render** (conteneur
+Docker), le site statique sur **GitHub Pages**. Aucun des deux n'a été déployé depuis cet environnement
+de développement — les étapes ci-dessous sont à faire manuellement, une fois.
+
+### 1. Déployer l'API sur Render
+
+1. Pousser ce dépôt sur GitHub s'il n'y est pas encore (`git remote add origin <url>` puis `git push -u origin main`).
+2. Créer un compte sur [render.com](https://render.com) (connexion avec GitHub la plus simple).
+3. **New > Blueprint**, sélectionner ce dépôt : Render lit `render.yaml` à la racine et propose de
+   créer le service `credit-scoring-api` (Docker, `Dockerfile.api`, plan Free) automatiquement.
+   *(Alternative sans Blueprint : **New > Web Service**, sélectionner le dépôt, Environment = Docker,
+   Dockerfile Path = `./Dockerfile.api`, Plan = Free.)*
+4. Lancer le déploiement et attendre la fin du premier build (plusieurs minutes : les dépendances
+   comme LightGBM sont volumineuses). Render fournit lui-même la variable `PORT` ; le `CMD` de
+   `Dockerfile.api` s'y adapte automatiquement (`${PORT:-8000}`), rien à configurer.
+5. Une fois déployée, noter l'URL du service (`https://credit-scoring-api-xxxx.onrender.com`) et
+   vérifier `<cette-url>/health`.
+
+**Plan gratuit Render** : le service se met en veille après 15 minutes sans requête ; la première
+requête qui le réveille peut prendre 30 à 60 secondes (`/health` finira par répondre — pas un bug).
+
+### 2. Déployer le frontend sur GitHub Pages
+
+1. Dans `frontend/js/config.js`, remplacer la valeur de `API_BASE_URL` (une seule ligne) par l'URL
+   Render obtenue à l'étape précédente, puis commit + push sur `main`.
+2. Dans le dépôt GitHub : **Settings > Pages > Source : GitHub Actions** (à faire une seule fois, à la
+   main — ce n'est pas un fichier versionné). Le workflow `.github/workflows/deploy-pages.yml` se
+   déclenche ensuite automatiquement à chaque push sur `main` qui touche `frontend/` (ou manuellement
+   depuis l'onglet **Actions**).
+3. Une fois le workflow terminé (onglet Actions), le site est en ligne à
+   `https://<utilisateur>.github.io/<nom-du-repo>/`. Tous les liens internes du site sont relatifs :
+   il fonctionne aussi bien à la racine d'un domaine que dans ce sous-dossier.
+
+### 3. Reconnecter les deux : CORS
+
+Une fois l'URL GitHub Pages connue, autoriser explicitement cette origine sur Render (Dashboard >
+le service > **Environment**, variable `ALLOWED_ORIGINS`, ou modifier la valeur dans `render.yaml` et
+redéployer) :
+
+```
+ALLOWED_ORIGINS=http://localhost:3000,https://<utilisateur>.github.io
+```
+
+### URLs de ce déploiement
+
+*(à compléter une fois les deux services en ligne)*
+
+- API (Render) : `<à compléter>`
+- Site (GitHub Pages) : `<à compléter>`
+
 ## Structure du projet
 
 ```
@@ -211,7 +263,9 @@ credit-scoring/
 ├── nginx/               # Modèle de configuration nginx du frontend
 ├── models/              # Modèle final, scaler, seuil, paramètres de nettoyage, résultats du test
 ├── docs/screenshots/    # Captures d'écran du site
+├── .github/workflows/   # deploy-pages.yml : publie frontend/ sur GitHub Pages
 ├── Dockerfile.api / Dockerfile.frontend / docker-compose.yml
+├── render.yaml          # Déploiement de l'API sur Render (Blueprint)
 ├── requirements.txt     # Environnement de développement complet
 ├── requirements-api.txt # Dépendances minimales de l'API
 └── README.md
